@@ -21,10 +21,41 @@ pub struct CudaContext {
 
 impl CudaContext {
     pub fn init(cnn: &Cnn) -> Result<Self, Box<dyn Error>> {
-        Err("Not implemented")?
+        rustacuda::init(CudaFlags::empty())?;
+        let device = Device::get_device(0)?;
+        let _ctx = Context::create_and_push(ContextFlags::MAP_HOST | ContextFlags::SCHED_AUTO, device)?;
+        let ptx = CString::new(include_str!("../kernel/kernel.ptx"))?;
+
+        let cuda_context = CudaContext {
+            conv_layer: DeviceBox::new(&cnn.conv_layer)?,
+            output_layer: DeviceBox::new(&cnn.output_layer)?,
+            module: Module::load_from_string(&ptx)?,
+            stream: Stream::new(StreamFlags::NON_BLOCKING, None)?,
+            _context: _ctx
+        };
+
+        Ok(cuda_context)
     }
 
     pub fn compute(&mut self, input: &InputMatrix) -> Result<OutputVec, Box<dyn Error>> {
-        Err("Not implemented")?
+        let mut output = OutputVec([0.0; OUT_LAYER_SIZE]);
+        // Lets do grid size of 10 blocks, with 20x20 threads in each block
+        let num_blocks = 10;
+        let threads_per_block = BlockSize::xy(20, 20);
+        let module = &self.module;
+        let stream = &self.stream;
+        let mut output_box = DeviceBox::new(&output)?;
+        unsafe {
+            let result = launch!(module.compute<<<num_blocks, threads_per_block, 0, stream>>>(
+                DeviceBox::new(input)?.as_device_ptr(),
+                self.conv_layer.as_device_ptr(),
+                self.output_layer.as_device_ptr(),
+                output_box.as_device_ptr()
+            ));
+            result?;
+        }
+        stream.synchronize()?;
+        output_box.copy_to(&mut output)?;
+        Ok(output)
     }
 }
