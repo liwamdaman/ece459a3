@@ -38,16 +38,18 @@ impl CudaContext {
     }
 
     pub fn compute(&mut self, input: &InputMatrix) -> Result<OutputVec, Box<dyn Error>> {
-        let mut output = OutputVec([0.0; OUT_LAYER_SIZE]);
         // Lets do grid size of 10 blocks, with 20x20 threads in each block
         let num_blocks = 10;
         let threads_per_block = BlockSize::xy(20, 20);
+
+        let mut input_box = DeviceBox::new(input)?;
         let module = &self.module;
         let stream = &self.stream;
+        let mut output = OutputVec([0.0f64; OUT_LAYER_SIZE]);
         let mut output_box = DeviceBox::new(&output)?;
         unsafe {
             let result = launch!(module.compute<<<num_blocks, threads_per_block, 0, stream>>>(
-                DeviceBox::new(input)?.as_device_ptr(),
+                input_box.as_device_ptr(),
                 self.conv_layer.as_device_ptr(),
                 self.output_layer.as_device_ptr(),
                 output_box.as_device_ptr()
