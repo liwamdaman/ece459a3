@@ -43,10 +43,10 @@ impl CudaContext {
         let threads_per_block = BlockSize::xy(20, 20);
 
         let mut input_box = DeviceBox::new(input)?;
-        let module = &self.module;
-        let stream = &self.stream;
         let mut output = OutputVec([0.0f64; OUT_LAYER_SIZE]);
         let mut output_box = DeviceBox::new(&output)?;
+        let module = &self.module;
+        let stream = &self.stream;
         unsafe {
             let result = launch!(module.compute<<<num_blocks, threads_per_block, 0, stream>>>(
                 input_box.as_device_ptr(),
