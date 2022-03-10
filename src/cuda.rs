@@ -30,7 +30,7 @@ impl CudaContext {
             conv_layer: DeviceBox::new(&cnn.conv_layer)?,
             output_layer: DeviceBox::new(&cnn.output_layer)?,
             module: Module::load_from_string(&ptx)?,
-            stream: Stream::new(StreamFlags::NON_BLOCKING, None)?,
+            stream: Stream::new(StreamFlags::DEFAULT, None)?,
             _context: _ctx
         };
 
@@ -38,24 +38,41 @@ impl CudaContext {
     }
 
     pub fn compute(&mut self, input: &InputMatrix) -> Result<OutputVec, Box<dyn Error>> {
-        // Lets do grid size of 10 blocks, with 20x20 threads in each block
-        let num_blocks = 10;
-        let threads_per_block = BlockSize::xy(20, 20);
-
         let mut input_box = DeviceBox::new(input)?;
+        let mut conv_output = DeviceBox::new(ConvOutput([[[0.0f64; CONV_OUT_DIM]; CONV_OUT_DIM]; CONV_LAYER_SIZE]))?;
         let mut output = OutputVec([0.0f64; OUT_LAYER_SIZE]);
         let mut output_box = DeviceBox::new(&output)?;
         let module = &self.module;
         let stream = &self.stream;
+
+        // Lets do grid size of 10 blocks, with 20x20 threads in each block
+        let num_blocks = 10;
+        let threads_per_block = BlockSize::xy(20, 20);
+
         unsafe {
-            let result = launch!(module.compute<<<num_blocks, threads_per_block, 0, stream>>>(
+            // Convolution Layer. 
+            let result = launch!(module.convolution_layer<<<num_blocks, threads_per_block, 0, stream>>>(
                 input_box.as_device_ptr(),
                 self.conv_layer.as_device_ptr(),
-                self.output_layer.as_device_ptr(),
-                output_box.as_device_ptr()
+                conv_output.as_device_ptr()
             ));
             result?;
+
+            // Relu Layer
+            let result = launch!(module.relu_layer<<<num_blocks, threads_per_block, 0, stream>>>(conv_output.as_device_ptr()));
+            result?;
+
+            // Output Layer. One kernel call per output number
+            for output_idx in 0..10 {
+                let result = launch!(module.output_layer_for_single_output<<<num_blocks, threads_per_block, 0, stream>>>(
+                    conv_output.as_device_ptr(),
+                    self.output_layer,
+                    single_output
+                ));
+                result?;
+            }
         }
+        
         stream.synchronize()?;
         output_box.copy_to(&mut output)?;
         Ok(output)
