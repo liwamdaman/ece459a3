@@ -162,111 +162,111 @@ BB1_2:
 .visible .entry output_layer_multiplication_for_single_output(
 	.param .u64 output_layer_multiplication_for_single_output_param_0,
 	.param .u64 output_layer_multiplication_for_single_output_param_1,
-	.param .u32 output_layer_multiplication_for_single_output_param_2
+	.param .u32 output_layer_multiplication_for_single_output_param_2,
+	.param .u64 output_layer_multiplication_for_single_output_param_3
 )
 {
 	.reg .b32 	%r<8>;
 	.reg .f64 	%fd<4>;
-	.reg .b64 	%rd<15>;
+	.reg .b64 	%rd<18>;
 
 
 	ld.param.u64 	%rd1, [output_layer_multiplication_for_single_output_param_0];
 	ld.param.u64 	%rd2, [output_layer_multiplication_for_single_output_param_1];
 	ld.param.u32 	%r1, [output_layer_multiplication_for_single_output_param_2];
-	cvta.to.global.u64 	%rd3, %rd2;
-	cvta.to.global.u64 	%rd4, %rd1;
+	ld.param.u64 	%rd3, [output_layer_multiplication_for_single_output_param_3];
+	cvta.to.global.u64 	%rd4, %rd3;
+	cvta.to.global.u64 	%rd5, %rd2;
+	cvta.to.global.u64 	%rd6, %rd1;
 	mov.u32 	%r2, %ctaid.x;
 	mov.u32 	%r3, %tid.x;
 	mov.u32 	%r4, %tid.y;
-	mul.wide.u32 	%rd5, %r2, 3200;
-	add.s64 	%rd6, %rd4, %rd5;
-	mul.wide.u32 	%rd7, %r3, 160;
+	mul.wide.u32 	%rd7, %r2, 3200;
 	add.s64 	%rd8, %rd6, %rd7;
-	mul.wide.u32 	%rd9, %r4, 8;
+	mul.wide.u32 	%rd9, %r3, 160;
 	add.s64 	%rd10, %rd8, %rd9;
-	ld.global.f64 	%fd1, [%rd10];
+	mul.wide.u32 	%rd11, %r4, 8;
+	add.s64 	%rd12, %rd10, %rd11;
+	ld.global.f64 	%fd1, [%rd12];
 	mul.lo.s32 	%r5, %r2, 400;
 	mad.lo.s32 	%r6, %r3, 20, %r5;
 	add.s32 	%r7, %r6, %r4;
-	mul.wide.s32 	%rd11, %r1, 32000;
-	add.s64 	%rd12, %rd3, %rd11;
-	mul.wide.u32 	%rd13, %r7, 8;
-	add.s64 	%rd14, %rd12, %rd13;
-	ld.global.f64 	%fd2, [%rd14];
+	mul.wide.s32 	%rd13, %r1, 32000;
+	add.s64 	%rd14, %rd5, %rd13;
+	mul.wide.u32 	%rd15, %r7, 8;
+	add.s64 	%rd16, %rd14, %rd15;
+	ld.global.f64 	%fd2, [%rd16];
 	mul.f64 	%fd3, %fd1, %fd2;
-	st.global.f64 	[%rd14], %fd3;
+	add.s64 	%rd17, %rd4, %rd15;
+	st.global.f64 	[%rd17], %fd3;
 	ret;
 }
 
 	// .globl	output_layer_add_1
 .visible .entry output_layer_add_1(
 	.param .u64 output_layer_add_1_param_0,
-	.param .u32 output_layer_add_1_param_1,
-	.param .u64 output_layer_add_1_param_2
+	.param .u64 output_layer_add_1_param_1
 )
 {
-	.reg .b32 	%r<7>;
+	.reg .b32 	%r<6>;
 	.reg .f64 	%fd<41>;
-	.reg .b64 	%rd<11>;
+	.reg .b64 	%rd<9>;
 
 
 	ld.param.u64 	%rd1, [output_layer_add_1_param_0];
-	ld.param.u32 	%r1, [output_layer_add_1_param_1];
-	ld.param.u64 	%rd2, [output_layer_add_1_param_2];
+	ld.param.u64 	%rd2, [output_layer_add_1_param_1];
 	cvta.to.global.u64 	%rd3, %rd1;
-	mov.u32 	%r2, %ctaid.x;
-	mov.u32 	%r3, %tid.x;
-	mul.lo.s32 	%r4, %r3, 20;
-	mad.lo.s32 	%r5, %r2, 500, %r4;
-	mul.wide.s32 	%rd4, %r1, 32000;
+	mov.u32 	%r1, %ctaid.x;
+	mov.u32 	%r2, %tid.x;
+	mul.lo.s32 	%r3, %r2, 20;
+	mad.lo.s32 	%r4, %r1, 500, %r3;
+	mul.wide.u32 	%rd4, %r4, 8;
 	add.s64 	%rd5, %rd3, %rd4;
-	mul.wide.u32 	%rd6, %r5, 8;
-	add.s64 	%rd7, %rd5, %rd6;
-	ld.global.f64 	%fd1, [%rd7];
+	ld.global.f64 	%fd1, [%rd5];
 	add.f64 	%fd2, %fd1, 0d0000000000000000;
-	ld.global.f64 	%fd3, [%rd7+8];
+	ld.global.f64 	%fd3, [%rd5+8];
 	add.f64 	%fd4, %fd2, %fd3;
-	ld.global.f64 	%fd5, [%rd7+16];
+	ld.global.f64 	%fd5, [%rd5+16];
 	add.f64 	%fd6, %fd4, %fd5;
-	ld.global.f64 	%fd7, [%rd7+24];
+	ld.global.f64 	%fd7, [%rd5+24];
 	add.f64 	%fd8, %fd6, %fd7;
-	ld.global.f64 	%fd9, [%rd7+32];
+	ld.global.f64 	%fd9, [%rd5+32];
 	add.f64 	%fd10, %fd8, %fd9;
-	ld.global.f64 	%fd11, [%rd7+40];
+	ld.global.f64 	%fd11, [%rd5+40];
 	add.f64 	%fd12, %fd10, %fd11;
-	ld.global.f64 	%fd13, [%rd7+48];
+	ld.global.f64 	%fd13, [%rd5+48];
 	add.f64 	%fd14, %fd12, %fd13;
-	ld.global.f64 	%fd15, [%rd7+56];
+	ld.global.f64 	%fd15, [%rd5+56];
 	add.f64 	%fd16, %fd14, %fd15;
-	ld.global.f64 	%fd17, [%rd7+64];
+	ld.global.f64 	%fd17, [%rd5+64];
 	add.f64 	%fd18, %fd16, %fd17;
-	ld.global.f64 	%fd19, [%rd7+72];
+	ld.global.f64 	%fd19, [%rd5+72];
 	add.f64 	%fd20, %fd18, %fd19;
-	ld.global.f64 	%fd21, [%rd7+80];
+	ld.global.f64 	%fd21, [%rd5+80];
 	add.f64 	%fd22, %fd20, %fd21;
-	ld.global.f64 	%fd23, [%rd7+88];
+	ld.global.f64 	%fd23, [%rd5+88];
 	add.f64 	%fd24, %fd22, %fd23;
-	ld.global.f64 	%fd25, [%rd7+96];
+	ld.global.f64 	%fd25, [%rd5+96];
 	add.f64 	%fd26, %fd24, %fd25;
-	ld.global.f64 	%fd27, [%rd7+104];
+	ld.global.f64 	%fd27, [%rd5+104];
 	add.f64 	%fd28, %fd26, %fd27;
-	ld.global.f64 	%fd29, [%rd7+112];
+	ld.global.f64 	%fd29, [%rd5+112];
 	add.f64 	%fd30, %fd28, %fd29;
-	ld.global.f64 	%fd31, [%rd7+120];
+	ld.global.f64 	%fd31, [%rd5+120];
 	add.f64 	%fd32, %fd30, %fd31;
-	ld.global.f64 	%fd33, [%rd7+128];
+	ld.global.f64 	%fd33, [%rd5+128];
 	add.f64 	%fd34, %fd32, %fd33;
-	ld.global.f64 	%fd35, [%rd7+136];
+	ld.global.f64 	%fd35, [%rd5+136];
 	add.f64 	%fd36, %fd34, %fd35;
-	ld.global.f64 	%fd37, [%rd7+144];
+	ld.global.f64 	%fd37, [%rd5+144];
 	add.f64 	%fd38, %fd36, %fd37;
-	ld.global.f64 	%fd39, [%rd7+152];
+	ld.global.f64 	%fd39, [%rd5+152];
 	add.f64 	%fd40, %fd38, %fd39;
-	cvta.to.global.u64 	%rd8, %rd2;
-	mad.lo.s32 	%r6, %r2, 25, %r3;
-	mul.wide.u32 	%rd9, %r6, 8;
-	add.s64 	%rd10, %rd8, %rd9;
-	st.global.f64 	[%rd10], %fd40;
+	cvta.to.global.u64 	%rd6, %rd2;
+	mad.lo.s32 	%r5, %r1, 25, %r2;
+	mul.wide.u32 	%rd7, %r5, 8;
+	add.s64 	%rd8, %rd6, %rd7;
+	st.global.f64 	[%rd8], %fd40;
 	ret;
 }
 

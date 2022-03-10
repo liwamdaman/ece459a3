@@ -28,33 +28,33 @@ extern "C" __global__ void relu_layer(double conv_output[10][20][20]) {
     }
 }
 
-extern "C" __global__ void output_layer_multiplication_for_single_output(double conv_output[10][20][20], double weights[10][4000], int output_number) {
-    weights[output_number][blockIdx.x*400 + threadIdx.x*20 + threadIdx.y] = conv_output[blockIdx.x][threadIdx.x][threadIdx.y] * weights[output_number][blockIdx.x*400 + threadIdx.x*20 + threadIdx.y];
+extern "C" __global__ void output_layer_multiplication_for_single_output(double conv_output[10][20][20], double weights[10][4000], int output_number, double output_layer_temp_1[4000]) {
+    output_layer_temp_1[blockIdx.x*400 + threadIdx.x*20 + threadIdx.y] = conv_output[blockIdx.x][threadIdx.x][threadIdx.y] * weights[output_number][blockIdx.x*400 + threadIdx.x*20 + threadIdx.y];
 }
 
-extern "C" __global__ void output_layer_add_1(double multiplication_output[10][4000], int output_number, double output_layer_temp_1[200]) {
+extern "C" __global__ void output_layer_add_1(double output_layer_temp_1[4000], double output_layer_temp_2[200]) {
     // 8 blocks, 25 threads per block
     double sum = 0;
     for (int i = 0; i < 20; i++) {
-        sum += multiplication_output[output_number][blockIdx.x*500 + threadIdx.x*20 + i];
+        sum += output_layer_temp_1[blockIdx.x*500 + threadIdx.x*20 + i];
     }
-    output_layer_temp_1[blockIdx.x*25 + threadIdx.x] = sum;
+    output_layer_temp_2[blockIdx.x*25 + threadIdx.x] = sum;
 }
 
-extern "C" __global__ void output_layer_add_2(double output_layer_temp_1[200], double output_layer_temp_2[10]) {
+extern "C" __global__ void output_layer_add_2(double output_layer_temp_2[200], double output_layer_temp_3[10]) {
     // 1 blocks, 10 threads per block
     double sum = 0;
     for (int i = 0; i < 20; i++) {
-        sum += output_layer_temp_1[threadIdx.x*20 + i];
+        sum += output_layer_temp_2[threadIdx.x*20 + i];
     }
-    output_layer_temp_2[threadIdx.x] = sum;
+    output_layer_temp_3[threadIdx.x] = sum;
 }
 
-extern "C" __global__ void output_layer_add_3(double output_layer_temp_2[10], double *output) {
+extern "C" __global__ void output_layer_add_3(double output_layer_temp_3[10], double *output) {
     // 1 blocks, 1 threads per block
     double sum = 0;
     for (int i = 0; i < 10; i++) {
-        sum += output_layer_temp_2[i];
+        sum += output_layer_temp_3[i];
     }
     *output = sum;
 }
