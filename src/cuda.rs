@@ -65,20 +65,29 @@ impl CudaContext {
             result?;
 
             // Output Layer. One kernel call per output number
+            let mut output_layer_temp_1 = DeviceBuffer::from_slice(&[0.0f64; 200])?;
+            let mut output_layer_temp_2 = DeviceBuffer::from_slice(&[0.0f64; 10])?;
             for output_idx in 0..10 {
-                let result = launch!(module.output_layer_for_single_output<<<num_blocks, threads_per_block.clone(), 0, stream>>>(
+                let result = launch!(module.output_layer_multiplication_for_single_output<<<num_blocks, threads_per_block.clone(), 0, stream>>>(
                     conv_output.as_device_ptr(),
                     self.output_layer.as_device_ptr(),
-                    DeviceBox::new(&output_idx)?.as_device_ptr(),
-                    single_output_box.as_device_ptr()
+                    output_idx
                 ));
+                result?;
+
+                // Start the summation of the dot product using a divide and conquer strategy. For these parts we will switch up how many threads are used.
+                let result = launch!(module.output_layer_add_1<<<8, 25, 0, stream>>>(self.output_layer.as_device_ptr(), output_idx, output_layer_temp_1.as_device_ptr()));
+                result?;
+                let result = launch!(module.output_layer_add_2<<<1, 10, 0, stream>>>(output_layer_temp_1.as_device_ptr(), output_layer_temp_2.as_device_ptr()));
+                result?;
+                let result = launch!(module.output_layer_add_3<<<1, 1, 0, stream>>>(output_layer_temp_2.as_device_ptr(), single_output_box.as_device_ptr()));
                 result?;
                 single_output_box.copy_to(&mut single_output)?;
                 output_vec.push(single_output);
             }
         }
 
-        stream.synchronize()?;
+        self.stream.synchronize()?;
 
         Ok(OutputVec(<[f64; 10]>::try_from(output_vec).unwrap()))
     }

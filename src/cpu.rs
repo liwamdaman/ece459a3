@@ -43,35 +43,7 @@ fn output_layer(input: &ConvOutput, weights: &OutputLayer, output: &mut OutputVe
         // Flatten the output of the previous layer into a 4000x1 vector, then dot product it with
         // the weight vector to produce a single value
         let flattened = input.0.iter().flat_map(|n| n.iter().flat_map(|r| r.iter()));
-        let multiplied = flattened.zip(weight.iter()).map(|(a, b)| a * b);
-        //let temp: Vec<f64> = multiplied.clone().into_iter().collect();
-        // let small = Vec![];
-        // for i in 0..
-        // println!("{}", temp[2580]);
-        // println!("{}", temp[2581]);
-        // println!("{}", temp[2582]);
-        // println!("{}", temp[2583]);
-        // println!("{}", temp[2584]);
-        // println!("{}", temp[2585]);
-        // println!("{}", temp[2586]);
-        // println!("{}", temp[2587]);
-        // println!("{}", temp[2588]);
-        // println!("{}", temp[2589]);
-        // println!("{}", temp[2590]);
-        // println!("{}", temp[2591]);
-        // println!("{}", temp[2592]);
-        // println!("{}", temp[2593]);
-        // println!("{}", temp[2594]);
-        // println!("{}", temp[2595]);
-        // println!("{}", temp[2596]);
-        // println!("{}", temp[2597]);
-        // println!("{}", temp[2598]);
-        // println!("{}", temp[2599]);
-        // for value in multiplied.clone().into_iter() {
-        //     println!("{}", value);
-        // }
-        let prod: f64 = multiplied.sum();
-        // println!("{}", prod);
+        let prod: f64 = flattened.zip(weight.iter()).map(|(a, b)| a * b).sum();
         *out = prod;
     }
 }
@@ -84,4 +56,3 @@ pub fn compute(input: &InputMatrix, cnn: &Cnn) -> OutputVec {
     output_layer(&conv_output, &cnn.output_layer, &mut output);
     output
 }
-
