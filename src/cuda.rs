@@ -1,5 +1,6 @@
 // This is the skeleton for the CUDA implementation
 
+use std::convert::TryFrom;
 use crate::cnn::*;
 use rustacuda::function::BlockSize;
 use rustacuda::launch;
@@ -39,9 +40,10 @@ impl CudaContext {
 
     pub fn compute(&mut self, input: &InputMatrix) -> Result<OutputVec, Box<dyn Error>> {
         let mut input_box = DeviceBox::new(input)?;
-        let mut conv_output = DeviceBox::new(ConvOutput([[[0.0f64; CONV_OUT_DIM]; CONV_OUT_DIM]; CONV_LAYER_SIZE]))?;
-        let mut output = OutputVec([0.0f64; OUT_LAYER_SIZE]);
-        let mut output_box = DeviceBox::new(&output)?;
+        let mut conv_output = DeviceBox::new(&ConvOutput([[[0.0f64; CONV_OUT_DIM]; CONV_OUT_DIM]; CONV_LAYER_SIZE]))?;
+        let mut output_vec: Vec<f64> = vec![];
+        let mut single_output = 0.0f64;
+        let mut single_output_box = DeviceBox::new(&single_output)?;
         let module = &self.module;
         let stream = &self.stream;
 
@@ -50,8 +52,8 @@ impl CudaContext {
         let threads_per_block = BlockSize::xy(20, 20);
 
         unsafe {
-            // Convolution Layer. 
-            let result = launch!(module.convolution_layer<<<num_blocks, threads_per_block, 0, stream>>>(
+            // Convolution Layer.
+            let result = launch!(module.convolution_layer<<<num_blocks, threads_per_block.clone(), 0, stream>>>(
                 input_box.as_device_ptr(),
                 self.conv_layer.as_device_ptr(),
                 conv_output.as_device_ptr()
@@ -59,22 +61,25 @@ impl CudaContext {
             result?;
 
             // Relu Layer
-            let result = launch!(module.relu_layer<<<num_blocks, threads_per_block, 0, stream>>>(conv_output.as_device_ptr()));
+            let result = launch!(module.relu_layer<<<num_blocks, threads_per_block.clone(), 0, stream>>>(conv_output.as_device_ptr()));
             result?;
 
             // Output Layer. One kernel call per output number
             for output_idx in 0..10 {
-                let result = launch!(module.output_layer_for_single_output<<<num_blocks, threads_per_block, 0, stream>>>(
+                let result = launch!(module.output_layer_for_single_output<<<num_blocks, threads_per_block.clone(), 0, stream>>>(
                     conv_output.as_device_ptr(),
-                    self.output_layer,
-                    single_output
+                    self.output_layer.as_device_ptr(),
+                    DeviceBox::new(&output_idx)?.as_device_ptr(),
+                    single_output_box.as_device_ptr()
                 ));
                 result?;
+                single_output_box.copy_to(&mut single_output)?;
+                output_vec.push(single_output);
             }
         }
-        
+
         stream.synchronize()?;
-        output_box.copy_to(&mut output)?;
-        Ok(output)
+
+        Ok(OutputVec(<[f64; 10]>::try_from(output_vec).unwrap()))
     }
 }
