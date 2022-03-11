@@ -1,0 +1,30 @@
+# PR: Lab 3 - Using the GPU to compute the output of a CNN
+
+## Summary
+In this PR, the output of the three layer CNN is computed using the GPU using CUDA instead of using the CPU as before. Using CUDA and the GPU adds parallelism to the computation and is intended to improved performance. When computing the output of the CNN, a large number of simple operations (such as dot products) must be computed over large arrays of data. These simple calculations can be done independently throughout the arrays in small segments, making this a perfect use case for parallelizing using GPU hardware.
+
+## Tech details
+The first thing that needs to be done to compute the CNN output using CUDA is call `CudaContext.init()` in **cuda.rs**. This calls some CUDA-related initializing functions, including passing the kernel code written in ****kernel.cu**, as well as initializing CudaContext with CNN parameters and CUDA stream, module, and context.
+
+Next, `CudaContext.compute()` in **cuda.rs** is called for each input. The input to the CNN is a 100 x 100 matrix, and it must be passed through three layers before it is transformed into a 10-value output. Firstly, multiple DeviceBox objects are created which wrap the inputs and outputs of the layers, so that they can be passed to and from the kernel code.
+
+### Convolution Layer
+The first Layer of the CNN is the convolution layer and its computation is the first use of the GPU and the first launch of kernel code written in **kernel.cu** (`convolution_layer()`). We pass in a device pointer (using `DeviceBox::as_device_ptr()`) of the 100x100 input, the 10 5x5 neurons/filters, and a buffer to contain the output of the convolution layer, which is of size 10x20x20. For this kernel call, a grid size of 10 blocks is used, with 20x20 threads (400 threads total) used per block. As such, each of the 10 blocks is responsible for handling one of the 10 neurons, and exactly each single thread in a block is responsible for computing the dot product of a single 5x5 region of the input with designated neuron.
+
+### ReLU layer
+The ReLU layer computation is quite simple. Again, we launch kernel code located in **kernel.cu** (`relu_layer()`), and pass in a pointer to the output of the convolution layer. The same grid size and block size configuration is used again. Each thread is responsible for checking a single element from the convolution layer output, and setting it to 0 if the value is negative.
+
+### Output Layer
+For the output layer, temperorary buffers are first allocated which are used to aid in sum reduction. The output layer computation is done 10 times in a for loop, since the weights of the CNN is composed of 10 arrays of 4000 weight values, which are all independently dot product'ed with the output of the ReLU layer. The resulting dot products are then appended together to create the final 10-value output. Inside the loop contains four kernel calls - one call to perform the multiplication step of the dot product, and three calls to perform the summation step using a divide-and-conquer strategy.
+
+In the multiplication step (`output_layer_multiplication_for_single_output()` in **kernel.cu**), the same grid size of 10 and block size of 20x20 is used again. the weights array is of size 4000, but is indexed similarily to a 3D matrix, so that a single thread is responsible for multiplying one element of the ReLU layer output with its corresponding weight. This is equivalent to flattening the 3D ReLU output and then performing the dot product with 1D arrays.
+
+For the summation step, a divide and conquer strategy is used to perform the summation in three kernel calls. In the first call (`output_layer_add_1()` in **kernel.cu**), 8 blocks with 25 threads each are used (200 threads total). The array of 4000 is then treated as 200 equal segments, and each thread is then responsible for summing the 20 elements in a single segment, producing a 200 element array to sum. In the second call (`output_layer_add_2()` in **kernel.cu**), one block is used with 10 threads. Each thread is once again responsible for summing 20 elements of equally sized segments of the 200 element array. Finally, in the last step (`output_layer_add_3()` in **kernel.cu**), a single thread performs the final summation, reducing the 10 element array to a single value.
+
+## Correctness
+The code was initially tested for correctness by inspection, using only a single input for the CNN computation. This was done by modifying the **generate.py** script and creating a small input csv file containing only one input. This way, the corresponding output csv files would be small, and the output using CUDA/GPU and the output using the CPU (which is assumed to be correct) can be compared by eye. The **compare.py** script was then also used to verify that the outputs were the same. Once this was verified, the full-sized input csv was used to produce CNN outputs using both CUDA/GPU and CPU. Once again, the **compare.py** script did not complain about any discrepencies. Output generation and running the compare script was repeated manually 10+ times without issue, which was considered sufficient evidence to validate the correctness of the implementation. 
+
+## Performance
+In order to test the code for performance, the computation time of the CNN output was collected simply by running the code with an input. In `main()`, the microseconds of actual work done is calculated for the CNN computation and printed out. As long as the same input is used for both the CPU implementation and the CUDA implementation, then a fair comparison of runtime can be collected to see if the new CUDA implementation improves the performance of the CNN computation. For example, using in.csv (250 inputs) on `ecetesla1`:
+- CPU implementation: 45437 microseconds of actual work done
+- CUDA implementation: 60313 microseconds of actual work done
